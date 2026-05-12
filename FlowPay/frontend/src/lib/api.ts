@@ -1,5 +1,3 @@
-// Centralized API client for FlowPay backend.
-// Base URL: set VITE_API_BASE_URL in .env (defaults to http://localhost:8080).
 const BASE_URL =
   (import.meta as any).env?.VITE_API_BASE_URL ?? "http://localhost:8080";
 
@@ -36,43 +34,24 @@ async function request<T>(
   const text = await res.text();
   if (!res.ok) {
     let msg = text || res.statusText;
-    try {
-      const j = JSON.parse(text);
-      msg = j.message || j.error || msg;
-    } catch {}
+    try { const j = JSON.parse(text); msg = j.message || j.error || msg; } catch {}
     throw new ApiError(msg, res.status);
   }
   if (raw) return text as unknown as T;
   if (!text) return undefined as unknown as T;
-  try {
-    return JSON.parse(text) as T;
-  } catch {
-    return text as unknown as T;
-  }
+  try { return JSON.parse(text) as T; } catch { return text as unknown as T; }
 }
 
-// ---- Auth ----
 export interface SignupPayload { name: string; email: string; password: string; }
 export interface LoginPayload { email: string; password: string; }
 
 export const authApi = {
   signup: (data: SignupPayload) =>
-    request<{ message: string }>("/auth/signup", {
-      method: "POST",
-      body: JSON.stringify(data),
-      auth: false,
-    }),
-  // backend returns the JWT as a plain string
+    request<{ message: string }>("/auth/signup", { method: "POST", body: JSON.stringify(data), auth: false }),
   login: (data: LoginPayload) =>
-    request<string>("/auth/login", {
-      method: "POST",
-      body: JSON.stringify(data),
-      auth: false,
-      raw: true,
-    }),
+    request<string>("/auth/login", { method: "POST", body: JSON.stringify(data), auth: false, raw: true }),
 };
 
-// ---- Orders ----
 export interface Order {
   id: number;
   amount: number;
@@ -84,19 +63,15 @@ export interface Order {
 
 export const ordersApi = {
   create: (amount: number) =>
-    request<Order>("/api/orders", {
-      method: "POST",
-      body: JSON.stringify({ amount }),
-    }),
+    request<Order>("/api/orders", { method: "POST", body: JSON.stringify({ amount }) }),
+
   list: () => request<Order[]>("/api/orders", { method: "GET" }),
+
+  // Keys must be snake_case to match @JsonProperty on the backend DTO
   verify: (data: {
-    razorpayOrderId: string;
-    razorpayPaymentId: string;
-    razorpaySignature: string;
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string;
   }) =>
-    request<string>("/api/orders/verify", {
-      method: "POST",
-      body: JSON.stringify(data),
-      raw: true,
-    }),
+    request<string>("/api/orders/verify", { method: "POST", body: JSON.stringify(data), raw: true }),
 };

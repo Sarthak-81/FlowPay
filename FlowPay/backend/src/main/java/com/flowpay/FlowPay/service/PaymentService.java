@@ -3,7 +3,6 @@ package com.flowpay.FlowPay.service;
 import java.time.LocalDateTime;
 
 import org.json.JSONObject;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -32,77 +31,62 @@ public class PaymentService {
     private String secret;
 
     private final OrderRepository orderRepository;
-
     private final PaymentTransactionRepository paymentTransactionRepository;
 
     public String createRazorpayOrder(Double amount) throws Exception {
-
         RazorpayClient client = new RazorpayClient(key, secret);
-
         JSONObject options = new JSONObject();
-        options.put("amount", amount * 100); // paise
+        options.put("amount", (long) (amount * 100));
         options.put("currency", "INR");
-        options.put("receipt", "txn_123456");
-
+        options.put("receipt", "txn_" + System.currentTimeMillis());
         com.razorpay.Order order = client.orders.create(options);
-
         return order.get("id").toString();
     }
 
-     public String verifyPayment(PaymentVerificationRequest request) throws Exception {
+    public String verifyPayment(PaymentVerificationRequest request) throws Exception {
+        // Step 1: Verify signature
+        String payload = request.getRazorpayOrderId() + "|" + request.getRazorpayPaymentId();
+        boolean isValid = Utils.verifySignature(payload, request.getRazorpaySignature(), secret);
+        if (!isValid) throw new RuntimeException("Invalid payment signature");
 
-        String payload = request.razorpayOrderId + "|" + request.razorpayPaymentId;
-
-        boolean isValid = Utils.verifySignature(
-                payload,
-                request.razorpaySignature,
-                secret 
-        );
-
-        if (!isValid) {
-            throw new RuntimeException("Invalid payment signature");
-        }
-
+        // Step 2: Update Order → PAID
         Order order = orderRepository
-                .findByRazorpayOrderId(request.razorpayOrderId)
-                .orElseThrow(() -> new RuntimeException("Order not found"));
-
+                .findByRazorpayOrderId(request.getRazorpayOrderId())
+                .orElseThrow(() -> new RuntimeException("Order not found: " + request.getRazorpayOrderId()));
         order.setStatus("PAID");
         orderRepository.save(order);
 
+        // Step 3: Update PaymentTransaction with payment ID and SUCCESS status
+        PaymentTransaction transaction = paymentTransactionRepository
+                .findByRazorpayOrderId(request.getRazorpayOrderId())
+                .orElseThrow(() -> new RuntimeException("Transaction not found: " + request.getRazorpayOrderId()));
+        transaction.setRazorpayPaymentId(request.getRazorpayPaymentId());
+        transaction.setStatus(PaymentStatus.SUCCESS);
+        transaction.setUpdatedAt(LocalDateTime.now());
+        paymentTransactionRepository.save(transaction);
+
+        log.info("Payment verified. Order {} → PAID. Transaction updated with {}", 
+                request.getRazorpayOrderId(), request.getRazorpayPaymentId());
         return "Payment verified successfully";
     }
 
-    public void processWebhook(RazorpayWebhookRequest request, String signature) 
-    {
-        log.info("Received Razorpay webhook: {}", request.getEvent());
-
-        String paymentId = request.getPayload()
-                .getPayment()
-                .getEntity()
-                .getId();
-
-        String orderId = request.getPayload()
-                .getPayment()
-                .getEntity()
-                .getOrder_id();
+    public void processWebhook(RazorpayWebhookRequest request, String signature) {
+        log.info("Webhook received: {}", request.getEvent());
+        String paymentId = request.getPayload().getPayment().getEntity().getId();
+        String orderId = request.getPayload().getPayment().getEntity().getOrder_id();
 
         PaymentTransaction transaction = paymentTransactionRepository
                 .findByRazorpayOrderId(orderId)
-                .orElseThrow(() -> new RuntimeException("Transaction not found"));
-
+                .orElseThrow(() -> new RuntimeException("Transaction not found: " + orderId));
         transaction.setRazorpayPaymentId(paymentId);
         transaction.setWebhookEvent(request.getEvent());
         transaction.setUpdatedAt(LocalDateTime.now());
 
         if ("payment.captured".equals(request.getEvent())) {
             transaction.setStatus(PaymentStatus.SUCCESS);
-            log.info("Payment captured successfully for order {}", orderId);
         } else {
             transaction.setStatus(PaymentStatus.FAILED);
-            log.error("Payment failed for order {}", orderId);
         }
-
         paymentTransactionRepository.save(transaction);
     }
 }

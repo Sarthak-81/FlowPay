@@ -11,24 +11,47 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
+/**
+ * JPA entity representing a registered user in the FlowPay system.
+ *
+ * <p>Users authenticate via email/password and receive a JWT on login.
+ * The {@code role} field is used by Spring Security for authorization
+ * (e.g. {@code ROLE_USER}, {@code ROLE_ADMIN}).</p>
+ *
+ * <p>Maps to the {@code users} table in the database.</p>
+ */
 @Entity
 @Table(name = "users")
 @Getter
 @Setter
 public class User {
 
+    /** Auto-generated primary key. */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /** User's full name. */
+    private String name;
+
+    /**
+     * User's email address. Used as the login identifier and stored in the JWT subject.
+     * Must be unique across all users.
+     */
     @Column(unique = true)
     private String email;
 
+    /** BCrypt-hashed password. Never stored in plain text. */
     private String password;
 
-    private String name;
+    /**
+     * Spring Security role string (e.g. {@code ROLE_USER}, {@code ROLE_ADMIN}).
+     * Must include the {@code ROLE_} prefix for Spring Security's
+     * {@code hasRole()} / {@code hasAnyRole()} matchers to work correctly.
+     */
+    private String role;
 
-    private String role; // ROLE_USER / ROLE_ADMIN
-
+    /** Timestamp when the user account was created. */
+    @Column(name = "created_at")
     private LocalDateTime createdAt;
 }
