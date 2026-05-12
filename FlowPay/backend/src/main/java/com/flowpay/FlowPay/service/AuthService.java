@@ -38,6 +38,7 @@ public class AuthService
         user.setPassword(passwordEncoder.encode(request.password));
         user.setRole("ROLE_USER");
         user.setCreatedAt(LocalDateTime.now());
+        user.setName(request.name);
 
         userRepository.save(user);
 

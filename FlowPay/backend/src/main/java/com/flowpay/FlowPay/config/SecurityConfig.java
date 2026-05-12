@@ -13,19 +13,21 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableWebSecurity
 public class SecurityConfig 
 {
-
     private final JwtFilter jwtFilter;
-    public SecurityConfig(JwtFilter jwtFilter) {
+
+    public SecurityConfig(JwtFilter jwtFilter) 
+    {
         this.jwtFilter = jwtFilter;
     }
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception 
+    {
         http
-            .csrf(csrf -> csrf.disable()) // disable CSRF for now
+            .csrf(csrf -> csrf.disable()) 
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/auth/**").permitAll() // allow signup/login
                 .requestMatchers("/api/admin").hasRole("ADMIN") // only ADMIN can access /api/admin
-                .requestMatchers("/api/user").hasAnyRole("USER", "ADMIN") // USER or ADMIN can access /api/user
+                .requestMatchers("/api/**").hasAnyRole("USER", "ADMIN") // USER or ADMIN can access /api/user
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);

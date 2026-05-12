@@ -9,7 +9,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update   # 🔥 THIS creates tables
+      ddl-auto: update
     show-sql: true
     properties:
       hibernate:
@@ -18,3 +18,10 @@ spring:
 razorpay:
   key: rzp_test_SjJbldo92o9fp3
   secret: vzxrTzAAHpOLQD0XLLae6Bs5
+
+logging:
+  level:
+    root: INFO
+
+server:
+    port: 8080 

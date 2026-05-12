@@ -10,7 +10,10 @@ import org.springframework.stereotype.Service;
 import com.flowpay.FlowPay.dto.OrderRequest;
 import com.flowpay.FlowPay.dto.PaymentVerificationRequest;
 import com.flowpay.FlowPay.entity.Order;
+import com.flowpay.FlowPay.entity.PaymentTransaction;
+import com.flowpay.FlowPay.enums.PaymentStatus;
 import com.flowpay.FlowPay.repository.OrderRepository;
+import com.flowpay.FlowPay.repository.PaymentTransactionRepository;
 //import com.razorpay.Utils;
 import com.razorpay.Utils;
 
@@ -21,6 +24,9 @@ public class OrderService
     private OrderRepository orderRepository;
 
     @Autowired
+    private PaymentTransactionRepository paymentTransactionRepository;
+
+    @Autowired
     private PaymentService paymentService;
 
     @Value("${razorpay.key}")
@@ -29,20 +35,34 @@ public class OrderService
     @Value("${razorpay.secret}")
     private String secret; 
     
-    public Order createOrder(String email, OrderRequest request) throws Exception {
+    public Order createOrder(String email, OrderRequest request) throws Exception 
+    {
 
-    Order order = new Order();
-    order.setAmount(request.amount);
-    order.setStatus("CREATED");
-    order.setUserEmail(email);
-    order.setCreatedAt(LocalDateTime.now());
+        Order order = new Order();
+        order.setAmount(request.amount);
+        order.setStatus("CREATED");
+        order.setUserEmail(email);
+        order.setCreatedAt(LocalDateTime.now());
 
-    String razorpayOrder = paymentService.createRazorpayOrder(request.amount);
+        String razorpayOrderId = paymentService.createRazorpayOrder(request.getAmount());
 
-    order.setRazorpayOrderId(razorpayOrder);
+        order.setRazorpayOrderId(razorpayOrderId);
 
-    return orderRepository.save(order);
-}
+        Order savedOrder = orderRepository.save(order);
+
+        PaymentTransaction transaction = PaymentTransaction.builder()
+                .orderId(savedOrder.getId().toString())
+                .razorpayOrderId(savedOrder.getRazorpayOrderId())
+                .amount(savedOrder.getAmount())
+                .status(PaymentStatus.CREATED)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        paymentTransactionRepository.save(transaction);
+
+        return savedOrder;
+    }
 
     public List<Order> getUserOrders(String email) 
     {
