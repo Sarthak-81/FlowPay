@@ -97,11 +97,18 @@
         <scope>test</scope>
     </dependency>
 
+	<!-- Razorpay -->
 	<dependency>
-    <groupId>com.razorpay</groupId>
-    <artifactId>razorpay-java</artifactId>
-    <version>1.4.3</version>
-</dependency>
+		<groupId>com.razorpay</groupId>
+		<artifactId>razorpay-java</artifactId>
+		<version>1.4.3</version>
+	</dependency>
+
+	<!-- Kafka -->
+	<dependency>
+		<groupId>org.springframework.kafka</groupId>
+		<artifactId>spring-kafka</artifactId>
+	</dependency>
 
 </dependencies>
 
