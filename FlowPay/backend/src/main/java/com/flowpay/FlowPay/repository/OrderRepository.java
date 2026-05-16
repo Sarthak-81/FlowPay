@@ -15,8 +15,8 @@ import com.flowpay.FlowPay.entity.Order;
  * custom query methods derived from the method names by Spring Data.</p>
  */
 @Repository
-public interface OrderRepository extends JpaRepository<Order, Long> {
-
+public interface OrderRepository extends JpaRepository<Order, Long> 
+{
     /**
      * Retrieves all orders placed by the given user.
      *

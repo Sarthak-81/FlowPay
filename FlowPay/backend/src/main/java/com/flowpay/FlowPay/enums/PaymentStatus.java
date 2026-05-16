@@ -9,8 +9,8 @@ package com.flowpay.FlowPay.enums;
  *   <li>{@link #FAILED}   – Payment failed or was rejected.</li>
  * </ul>
  */
-public enum PaymentStatus {
-
+public enum PaymentStatus 
+{
     /** Order created; awaiting payment initiation from the frontend. */
     CREATED,
 

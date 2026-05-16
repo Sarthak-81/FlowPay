@@ -21,6 +21,16 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
+    consumer:
+      group-id: flowpay-notification-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.flowpay.FlowPay.event
+        spring.json.value.default.type: com.flowpay.FlowPay.event.PaymentSuccessEvent
+        spring.json.use.type.headers: false
+
 razorpay:
   key: rzp_test_SjJbldo92o9fp3
   secret: vzxrTzAAHpOLQD0XLLae6Bs5

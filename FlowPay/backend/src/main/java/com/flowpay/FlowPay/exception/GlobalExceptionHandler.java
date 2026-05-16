@@ -13,8 +13,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  * returned to the client.</p>
  */
 @RestControllerAdvice
-public class GlobalExceptionHandler {
-
+public class GlobalExceptionHandler 
+{
     /**
      * Handles all {@link RuntimeException} instances thrown within controller methods.
      *
@@ -26,9 +26,8 @@ public class GlobalExceptionHandler {
      * @return a 400 response entity containing the error message
      */
     @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<String> handleRuntime(RuntimeException ex) {
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(ex.getMessage());
+    public ResponseEntity<String> handleRuntime(RuntimeException ex) 
+    {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
     }
 }

@@ -14,8 +14,8 @@ import com.flowpay.FlowPay.entity.PaymentTransaction;
  * custom query method for looking up transactions by Razorpay Order ID.</p>
  */
 @Repository
-public interface PaymentTransactionRepository extends JpaRepository<PaymentTransaction, Long> {
-
+public interface PaymentTransactionRepository extends JpaRepository<PaymentTransaction, Long> 
+{
     /**
      * Retrieves a payment transaction by its associated Razorpay Order ID.
      * Used by the webhook handler to locate the transaction to update.

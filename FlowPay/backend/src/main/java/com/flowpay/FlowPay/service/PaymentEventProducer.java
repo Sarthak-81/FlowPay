@@ -16,8 +16,8 @@ public class PaymentEventProducer
 
     private static final String PAYMENT_SUCCESS_TOPIC = "payment.success";
 
-    public void publishPaymentSuccess(PaymentSuccessEvent event) {
-
+    public void publishPaymentSuccess(PaymentSuccessEvent event) 
+    {
         log.info("Publishing payment success event for order {}", event.getOrderId());
 
         kafkaTemplate.send(

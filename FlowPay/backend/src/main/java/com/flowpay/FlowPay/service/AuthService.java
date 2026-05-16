@@ -25,7 +25,8 @@ import com.flowpay.FlowPay.utility.JwtUtil;
  * </ul>
  */
 @Service
-public class AuthService {
+public class AuthService 
+{
 
     @Autowired
     private UserRepository userRepository;
@@ -47,11 +48,10 @@ public class AuthService {
      * @return a 200 OK response with a success message map
      * @throws RuntimeException if the email is already in use
      */
-    public ResponseEntity<?> signup(SignupRequest request) {
-
-        if (userRepository.existsByEmail(request.email)) {
+    public ResponseEntity<?> signup(SignupRequest request) 
+    {
+        if (userRepository.existsByEmail(request.email))
             throw new RuntimeException("Email already exists");
-        }
 
         User user = new User();
         user.setEmail(request.email);
@@ -76,14 +76,13 @@ public class AuthService {
      * @return a signed JWT string
      * @throws RuntimeException if the user is not found or the password is incorrect
      */
-    public String login(LoginRequest request) {
-
+    public String login(LoginRequest request) 
+    {
         User user = userRepository.findByEmail(request.email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        if (!passwordEncoder.matches(request.password, user.getPassword())) {
+        if (!passwordEncoder.matches(request.password, user.getPassword()))
             throw new RuntimeException("Invalid password");
-        }
 
         return jwtUtil.generateToken(user.getEmail());
     }

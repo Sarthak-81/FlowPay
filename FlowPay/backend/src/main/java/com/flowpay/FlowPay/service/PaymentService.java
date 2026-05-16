@@ -23,8 +23,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class PaymentService {
-
+public class PaymentService 
+{
     @Value("${razorpay.key}")
     private String key;
 
@@ -87,38 +87,38 @@ public class PaymentService {
         transaction.setWebhookEvent(request.getEvent());
         transaction.setUpdatedAt(LocalDateTime.now());
 
-         if ("payment.captured".equals(request.getEvent())) {
+        if ("payment.captured".equals(request.getEvent())) {
 
-    transaction.setStatus(PaymentStatus.SUCCESS);
-    transaction.setRazorpayPaymentId(paymentId);
-    transaction.setWebhookEvent(request.getEvent());
-    transaction.setUpdatedAt(LocalDateTime.now());
+        transaction.setStatus(PaymentStatus.SUCCESS);
+        transaction.setRazorpayPaymentId(paymentId);
+        transaction.setWebhookEvent(request.getEvent());
+        transaction.setUpdatedAt(LocalDateTime.now());
 
-    PaymentTransaction savedTransaction =
-            paymentTransactionRepository.save(transaction);
+        PaymentTransaction savedTransaction =
+                paymentTransactionRepository.save(transaction);
 
-    PaymentSuccessEvent event = PaymentSuccessEvent.builder()
-            .orderId(savedTransaction.getOrderId())
-            .razorpayOrderId(savedTransaction.getRazorpayOrderId())
-            .razorpayPaymentId(savedTransaction.getRazorpayPaymentId())
-            .amount(savedTransaction.getAmount())
-            .status(savedTransaction.getStatus().name())
-            .eventTime(LocalDateTime.now())
-            .build();
+        PaymentSuccessEvent event = PaymentSuccessEvent.builder()
+                .orderId(savedTransaction.getOrderId())
+                .razorpayOrderId(savedTransaction.getRazorpayOrderId())
+                .razorpayPaymentId(savedTransaction.getRazorpayPaymentId())
+                .amount(savedTransaction.getAmount())
+                .status(savedTransaction.getStatus().name())
+                .eventTime(LocalDateTime.now())
+                .build();
 
-    paymentEventProducer.publishPaymentSuccess(event);
+        paymentEventProducer.publishPaymentSuccess(event);
 
-    log.info("Payment captured successfully for order {}", orderId);
+        log.info("Payment captured successfully for order {}", orderId);
 
-} else {
+        } else {
 
-    transaction.setStatus(PaymentStatus.FAILED);
-    transaction.setWebhookEvent(request.getEvent());
-    transaction.setUpdatedAt(LocalDateTime.now());
+        transaction.setStatus(PaymentStatus.FAILED);
+        transaction.setWebhookEvent(request.getEvent());
+        transaction.setUpdatedAt(LocalDateTime.now());
 
-    paymentTransactionRepository.save(transaction);
+        paymentTransactionRepository.save(transaction);
 
-    log.error("Payment failed for order {}", orderId);
-}
-}
+        log.error("Payment failed for order {}", orderId);
+        }
+    }
 }

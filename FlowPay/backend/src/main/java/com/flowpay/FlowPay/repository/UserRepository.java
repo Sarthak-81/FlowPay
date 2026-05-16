@@ -14,8 +14,8 @@ import com.flowpay.FlowPay.entity.User;
  * custom query methods for email-based lookups.</p>
  */
 @Repository
-public interface UserRepository extends JpaRepository<User, Long> {
-
+public interface UserRepository extends JpaRepository<User, Long> 
+{
     /**
      * Finds a user by their email address.
      * Used during login and JWT validation.

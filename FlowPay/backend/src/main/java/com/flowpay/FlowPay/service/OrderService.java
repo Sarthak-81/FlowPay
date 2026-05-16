@@ -22,8 +22,8 @@ import com.flowpay.FlowPay.repository.PaymentTransactionRepository;
  * in-process payment verification as a fallback to webhook-based updates.</p>
  */
 @Service
-public class OrderService {
-
+public class OrderService 
+{
     @Autowired
     private OrderRepository orderRepository;
 
@@ -59,7 +59,8 @@ public class OrderService {
      * @return the persisted {@link Order} entity
      * @throws Exception if the Razorpay API call fails
      */
-    public Order createOrder(String email, OrderRequest request) throws Exception {
+    public Order createOrder(String email, OrderRequest request) throws Exception 
+    {
 
         // Build and persist the initial order record
         Order order = new Order();
