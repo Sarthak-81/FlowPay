@@ -1,5 +1,8 @@
 package com.flowpay.FlowPay.dto;
 
+import java.util.List;
+
+import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -14,9 +17,13 @@ import lombok.Setter;
 @Setter
 public class OrderRequest {
 
-    /**
-     * Payment amount in rupees (INR).
-     * Must be a positive value greater than 0.
-     */
-    public Double amount;
+     private List<OrderItemRequest> items;
+
+    @Data
+    public static class OrderItemRequest 
+    {
+        private String itemName;
+        private Integer quantity;
+        private Double unitPrice;
+    }
 }

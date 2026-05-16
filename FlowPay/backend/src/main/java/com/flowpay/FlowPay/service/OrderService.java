@@ -3,16 +3,18 @@ package com.flowpay.FlowPay.service;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.flowpay.FlowPay.dto.OrderRequest;
 import com.flowpay.FlowPay.entity.Order;
+import com.flowpay.FlowPay.entity.OrderItem;
 import com.flowpay.FlowPay.entity.PaymentTransaction;
 import com.flowpay.FlowPay.enums.PaymentStatus;
 import com.flowpay.FlowPay.repository.OrderRepository;
 import com.flowpay.FlowPay.repository.PaymentTransactionRepository;
+
+import lombok.RequiredArgsConstructor;
 
 /**
  * Service layer for order lifecycle management.
@@ -22,16 +24,17 @@ import com.flowpay.FlowPay.repository.PaymentTransactionRepository;
  * in-process payment verification as a fallback to webhook-based updates.</p>
  */
 @Service
+@RequiredArgsConstructor
 public class OrderService 
 {
-    @Autowired
-    private OrderRepository orderRepository;
 
-    @Autowired
-    private PaymentTransactionRepository paymentTransactionRepository;
+    private final OrderRepository orderRepository;
 
-    @Autowired
-    private PaymentService paymentService;
+    private final PaymentTransactionRepository paymentTransactionRepository;
+
+    private final PaymentEventService paymentEventService;
+
+    private final PaymentService paymentService;
 
     @Value("${razorpay.key}")
     private String key;
@@ -62,32 +65,62 @@ public class OrderService
     public Order createOrder(String email, OrderRequest request) throws Exception 
     {
 
-        // Build and persist the initial order record
         Order order = new Order();
-        order.setAmount(request.getAmount());
-        order.setStatus("CREATED");
-        order.setUserEmail(email);
-        order.setCreatedAt(LocalDateTime.now());
+    order.setStatus("CREATED");
+    order.setUserEmail(email);
+    order.setCreatedAt(LocalDateTime.now());
 
-        // Call Razorpay to generate an order ID
-        String razorpayOrderId = paymentService.createRazorpayOrder(request.getAmount());
-        order.setRazorpayOrderId(razorpayOrderId);
+    double totalAmount = request.getItems()
+            .stream()
+            .mapToDouble(item -> item.getQuantity() * item.getUnitPrice())
+            .sum();
 
-        Order savedOrder = orderRepository.save(order);
+    order.setAmount(totalAmount);
 
-        // Persist an initial PaymentTransaction for audit trail
-        PaymentTransaction transaction = PaymentTransaction.builder()
-                .orderId(savedOrder.getId().toString())
-                .razorpayOrderId(savedOrder.getRazorpayOrderId())
-                .amount(savedOrder.getAmount())
-                .status(PaymentStatus.CREATED)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .build();
+    List<OrderItem> orderItems = request.getItems()
+            .stream()
+            .map(itemRequest -> {
+                OrderItem item = OrderItem.builder()
+                        .itemName(itemRequest.getItemName())
+                        .quantity(itemRequest.getQuantity())
+                        .unitPrice(itemRequest.getUnitPrice())
+                        .totalPrice(itemRequest.getQuantity() * itemRequest.getUnitPrice())
+                        .order(order)
+                        .build();
 
-        paymentTransactionRepository.save(transaction);
+                return item;
+            })
+            .toList();
 
-        return savedOrder;
+    order.setItems(orderItems);
+
+    String razorpayOrderId = paymentService.createRazorpayOrder(totalAmount);
+
+    order.setRazorpayOrderId(razorpayOrderId);
+
+    Order savedOrder = orderRepository.save(order);
+
+    PaymentTransaction transaction = PaymentTransaction.builder()
+            .orderId(savedOrder.getId().toString())
+            .razorpayOrderId(savedOrder.getRazorpayOrderId())
+            .amount(savedOrder.getAmount())
+            .status(PaymentStatus.CREATED)
+            .createdAt(LocalDateTime.now())
+            .updatedAt(LocalDateTime.now())
+            .build();
+
+    PaymentTransaction savedTransaction =
+            paymentTransactionRepository.save(transaction);
+
+    paymentEventService.recordEvent(
+            savedTransaction,
+            "PAYMENT_CREATED",
+            null,
+            PaymentStatus.CREATED.name(),
+            "Payment transaction created"
+    );
+
+    return savedOrder;
     }
 
     /**
