@@ -22,7 +22,6 @@ import io.jsonwebtoken.security.Keys;
 @Component
 public class JwtUtil 
 {
-    // TODO: Move this to application.yaml and inject via @Value for production use
     private final String SECRET = "mysecretkeymysecretkeymysecretkey";
 
     /**

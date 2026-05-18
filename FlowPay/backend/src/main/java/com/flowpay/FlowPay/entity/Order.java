@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -12,7 +14,10 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 import lombok.Setter;
 
 /**
@@ -29,6 +34,9 @@ import lombok.Setter;
 @Table(name = "orders")
 @Getter
 @Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Order {
 
     /** Auto-generated primary key. */
@@ -64,6 +72,14 @@ public class Order {
     @Column(name = "razorpay_order_id")
     private String razorpayOrderId;
 
+    /**
+     * {@code @JsonManagedReference} marks this as the "parent" side of the
+     * Order ↔ OrderItem relationship, preventing infinite JSON recursion.
+     * The child side ({@link OrderItem#order}) carries {@code @JsonBackReference}
+     * and is excluded from serialization.
+     */
+    @JsonManagedReference
+    @Builder.Default
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();
 }

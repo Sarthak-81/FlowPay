@@ -46,31 +46,9 @@ public class OrderService {
     /**
      * Creates a new order for the given user, with optional idempotency support.
      *
-     * <h3>Idempotency flow</h3>
-     * <p>If {@code idempotencyKey} is non-null and non-blank:</p>
-     * <ol>
-     *   <li>Look up the key in {@code idempotency_keys}.</li>
-     *   <li>If found and the resource type is {@code ORDER}, return the original order.</li>
-     *   <li>If not found, proceed with order creation and persist the key at the end.</li>
-     * </ol>
-     * <p>This prevents double-charges when clients retry a request after a timeout.</p>
-     *
-     * <h3>Order creation steps</h3>
-     * <ol>
-     *   <li>Validate the items list (must be non-empty).</li>
-     *   <li>Compute {@code totalAmount} from item quantities and unit prices.</li>
-     *   <li>Build and save the {@link Order} entity (without Razorpay ID yet).</li>
-     *   <li>Call {@link PaymentService#createRazorpayOrder} to get the Razorpay Order ID.</li>
-     *   <li>Set the Razorpay Order ID on the order and re-save.</li>
-     *   <li>Persist an initial {@link PaymentTransaction} with status {@code CREATED}.</li>
-     *   <li>Record a {@code PAYMENT_CREATED} audit event.</li>
-     *   <li>Persist the idempotency key if one was supplied.</li>
-     * </ol>
-     *
      * @param email          the authenticated user's email (extracted from JWT by the controller)
      * @param request        the order request body with the list of items
-     * @param idempotencyKey optional client-supplied key for duplicate-request protection;
-     *                       pass {@code null} or blank to skip idempotency checks
+     * @param idempotencyKey optional client-supplied key for duplicate-request protection
      * @return the persisted {@link Order} entity, including its Razorpay Order ID
      * @throws IllegalArgumentException  if the items list is null or empty
      * @throws ResourceNotFoundException if an idempotency key references a missing order
@@ -78,18 +56,14 @@ public class OrderService {
      */
     public Order createOrder(String email, OrderRequest request, String idempotencyKey) throws Exception {
 
-        // Guard: items must be present and non-empty to compute a meaningful total.
         if (request.getItems() == null || request.getItems().isEmpty()) {
             throw new IllegalArgumentException("Order must contain at least one item.");
         }
 
         // ── Idempotency check ────────────────────────────────────────────────
         if (idempotencyKey != null && !idempotencyKey.isBlank()) {
-
             Optional<IdempotencyKey> existing = idempotencyKeyRepository.findByIdempotencyKey(idempotencyKey);
-
             if (existing.isPresent() && "ORDER".equals(existing.get().getResourceType())) {
-                // A request with this key was already processed — return the original order.
                 return orderRepository.findById(Long.valueOf(existing.get().getResourceId()))
                         .orElseThrow(() -> new ResourceNotFoundException(
                                 "Idempotency key references a missing order (ID: "
@@ -97,21 +71,18 @@ public class OrderService {
             }
         }
 
-        // ── Build the Order entity ───────────────────────────────────────────
-        Order order = new Order();
-        order.setStatus("CREATED");
-        order.setUserEmail(email);
-        order.setCreatedAt(LocalDateTime.now());
-
-        // Compute totalAmount before setting items so the cascade save includes it.
         double totalAmount = request.getItems().stream()
                 .mapToDouble(item -> item.getQuantity() * item.getUnitPrice())
                 .sum();
 
-        order.setAmount(totalAmount);
+        Order order = Order.builder()
+                .status("CREATED")
+                .userEmail(email)
+                .createdAt(LocalDateTime.now())
+                .amount(totalAmount)
+                .build();
 
-        // Map DTOs → entities; each OrderItem holds a back-reference to its parent Order
-        // so the JPA cascade can save them in the same transaction.
+        // Map DTOs → entities; each OrderItem holds a back-reference to its parent Order.
         List<OrderItem> orderItems = request.getItems().stream()
                 .map(itemRequest -> OrderItem.builder()
                         .itemName(itemRequest.getItemName())
@@ -125,14 +96,12 @@ public class OrderService {
         order.setItems(orderItems);
 
         // ── Create the Razorpay order ────────────────────────────────────────
-        // This call is made BEFORE the first DB save so that if Razorpay is down,
-        // we avoid persisting an Order with no Razorpay ID.
         String razorpayOrderId = paymentService.createRazorpayOrder(totalAmount);
         order.setRazorpayOrderId(razorpayOrderId);
 
         Order savedOrder = orderRepository.save(order);
 
-        // ── Record the initial PaymentTransaction ───────────────────────────
+        // ── Record the initial PaymentTransaction ────────────────────────────
         PaymentTransaction transaction = PaymentTransaction.builder()
                 .orderId(savedOrder.getId().toString())
                 .razorpayOrderId(savedOrder.getRazorpayOrderId())
@@ -174,11 +143,8 @@ public class OrderService {
     /**
      * Retrieves all orders associated with the given user email.
      *
-     * <p>Returns an empty list (not an exception) if the user has no orders,
-     * which is a valid state for a newly registered user.</p>
-     *
      * @param email the authenticated user's email
-     * @return a (possibly empty) list of {@link Order} entities sorted by creation time
+     * @return a (possibly empty) list of {@link Order} entities
      */
     public List<Order> getUserOrders(String email) {
         return orderRepository.findByUserEmail(email);

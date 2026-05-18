@@ -5,9 +5,10 @@ import com.flowpay.FlowPay.dto.SignupRequest;
 import com.flowpay.FlowPay.entity.User;
 import com.flowpay.FlowPay.exception.DuplicateResourceException;
 import com.flowpay.FlowPay.exception.ResourceNotFoundException;
+import com.flowpay.FlowPay.mapper.UserMapper;
 import com.flowpay.FlowPay.repository.UserRepository;
 import com.flowpay.FlowPay.utility.JwtUtil;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -28,16 +29,13 @@ import java.util.Map;
  * which converts them to the appropriate HTTP response codes.</p>
  */
 @Service
+@RequiredArgsConstructor
 public class AuthService {
 
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
-    @Autowired
-    private JwtUtil jwtUtil;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtUtil jwtUtil;
+    private final UserMapper userMapper;
 
     /**
      * Registers a new user account.
@@ -45,26 +43,6 @@ public class AuthService {
      * <p>Throws {@link DuplicateResourceException} (→ HTTP 409) if the email is already
      * registered. The password is encoded using BCrypt before persistence.
      * The default role assigned is {@code ROLE_USER}.</p>
-     *
-     * <p><b>Fix:</b> The original method returned {@code ResponseEntity<?>}, which caused
-     * a double-wrapping bug when the controller called {@code ResponseEntity.ok(signup(request))}.
-     * The return type is now a plain {@link Map} so the controller can wrap it once.</p>
-     *
-     * <h3>Request</h3>
-     * <pre>{@code
-     * POST /auth/signup
-     * { "name": "Alice", "email": "alice@example.com", "password": "secret123" }
-     * }</pre>
-     *
-     * <h3>Response (200 OK)</h3>
-     * <pre>{@code
-     * { "message": "User registered successfully" }
-     * }</pre>
-     *
-     * <h3>Response (409 Conflict)</h3>
-     * <pre>{@code
-     * { "status": 409, "message": "Email already registered: alice@example.com" }
-     * }</pre>
      *
      * @param request the signup request containing name, email, and plain-text password
      * @return a map with a {@code "message"} key confirming successful registration
@@ -77,12 +55,11 @@ public class AuthService {
                     "Email already registered: " + request.email);
         }
 
-        User user = new User();
-        user.setEmail(request.email);
+        // MapStruct maps name and email; password/role/createdAt are set below.
+        User user = userMapper.toUser(request);
         user.setPassword(passwordEncoder.encode(request.password));
         user.setRole("ROLE_USER");
         user.setCreatedAt(LocalDateTime.now());
-        user.setName(request.name);
 
         userRepository.save(user);
 
@@ -93,29 +70,7 @@ public class AuthService {
      * Authenticates a user and returns a signed JWT.
      *
      * <p>Validates the email exists and the supplied plain-text password matches
-     * the stored BCrypt hash. On success, generates and returns a signed JWT
-     * valid for 1 hour (as configured in {@link JwtUtil#generateToken}).</p>
-     *
-     * <h3>Request</h3>
-     * <pre>{@code
-     * POST /auth/login
-     * { "email": "alice@example.com", "password": "secret123" }
-     * }</pre>
-     *
-     * <h3>Response (200 OK)</h3>
-     * <pre>{@code
-     * "eyJhbGciOiJIUzI1NiJ9..."
-     * }</pre>
-     *
-     * <h3>Response (404 Not Found)</h3>
-     * <pre>{@code
-     * { "status": 404, "message": "No account found for email: alice@example.com" }
-     * }</pre>
-     *
-     * <h3>Response (401 Unauthorized)</h3>
-     * <pre>{@code
-     * { "status": 401, "message": "Incorrect password." }
-     * }</pre>
+     * the stored BCrypt hash. On success, generates and returns a signed JWT.</p>
      *
      * @param request the login request containing email and plain-text password
      * @return a signed JWT string to be used as {@code Authorization: Bearer <token>}
@@ -129,9 +84,6 @@ public class AuthService {
                         "No account found for email: " + request.email));
 
         if (!passwordEncoder.matches(request.password, user.getPassword())) {
-            // Use IllegalArgumentException (→ 400) rather than a generic RuntimeException,
-            // so the GlobalExceptionHandler can assign the correct HTTP status.
-            // Avoid exposing whether the email or password was wrong to prevent user enumeration.
             throw new IllegalArgumentException("Incorrect password.");
         }
 
