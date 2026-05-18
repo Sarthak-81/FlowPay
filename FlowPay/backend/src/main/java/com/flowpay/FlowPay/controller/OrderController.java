@@ -3,11 +3,9 @@ package com.flowpay.FlowPay.controller;
 import com.flowpay.FlowPay.dto.OrderRequest;
 import com.flowpay.FlowPay.dto.OrderResponse;
 import com.flowpay.FlowPay.dto.PaymentVerificationRequest;
-import com.flowpay.FlowPay.entity.Order;
 import com.flowpay.FlowPay.mapper.OrderMapper;
 import com.flowpay.FlowPay.service.OrderService;
 import com.flowpay.FlowPay.service.PaymentService;
-import com.flowpay.FlowPay.utility.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -40,8 +38,6 @@ public class OrderController {
 
     private final OrderService orderService;
     private final PaymentService paymentService;
-    private final JwtUtil jwtUtil;
-    private final OrderMapper orderMapper;
 
     /**
      * Creates a new order for the currently authenticated user.
@@ -58,8 +54,9 @@ public class OrderController {
             @RequestBody OrderRequest request,
             Authentication auth) throws Exception {
 
-        Order order = orderService.createOrder(auth.getName(), request, idempotencyKey);
-        return ResponseEntity.status(HttpStatus.CREATED).body(orderMapper.toOrderResponse(order));
+        OrderResponse response = orderService.createOrder(auth.getName(), request, idempotencyKey);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     /**
@@ -70,8 +67,7 @@ public class OrderController {
      */
     @GetMapping
     public ResponseEntity<List<OrderResponse>> getOrders(Authentication auth) {
-        List<Order> orders = orderService.getUserOrders(auth.getName());
-        return ResponseEntity.ok(orderMapper.toOrderResponseList(orders));
+        return ResponseEntity.ok(orderService.getUserOrders(auth.getName()));
     }
 
     /**

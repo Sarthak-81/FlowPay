@@ -1,12 +1,14 @@
 package com.flowpay.FlowPay.service;
 
 import com.flowpay.FlowPay.dto.OrderRequest;
+import com.flowpay.FlowPay.dto.OrderResponse;
 import com.flowpay.FlowPay.entity.IdempotencyKey;
 import com.flowpay.FlowPay.entity.Order;
 import com.flowpay.FlowPay.entity.OrderItem;
 import com.flowpay.FlowPay.entity.PaymentTransaction;
 import com.flowpay.FlowPay.enums.PaymentStatus;
 import com.flowpay.FlowPay.exception.ResourceNotFoundException;
+import com.flowpay.FlowPay.mapper.OrderMapper;
 import com.flowpay.FlowPay.repository.IdempotencyKeyRepository;
 import com.flowpay.FlowPay.repository.OrderRepository;
 import com.flowpay.FlowPay.repository.PaymentTransactionRepository;
@@ -42,19 +44,19 @@ public class OrderService {
     private final PaymentEventService paymentEventService;
     private final PaymentService paymentService;
     private final IdempotencyKeyRepository idempotencyKeyRepository;
-
+    private final OrderMapper orderMapper;
     /**
      * Creates a new order for the given user, with optional idempotency support.
      *
      * @param email          the authenticated user's email (extracted from JWT by the controller)
      * @param request        the order request body with the list of items
      * @param idempotencyKey optional client-supplied key for duplicate-request protection
-     * @return the persisted {@link Order} entity, including its Razorpay Order ID
+     * @return the persisted {@link OrderResponse} DTO, including its Razorpay Order ID
      * @throws IllegalArgumentException  if the items list is null or empty
      * @throws ResourceNotFoundException if an idempotency key references a missing order
      * @throws Exception                 if the Razorpay API call fails
      */
-    public Order createOrder(String email, OrderRequest request, String idempotencyKey) throws Exception {
+    public OrderResponse createOrder(String email, OrderRequest request, String idempotencyKey) throws Exception {
 
         if (request.getItems() == null || request.getItems().isEmpty()) {
             throw new IllegalArgumentException("Order must contain at least one item.");
@@ -64,10 +66,12 @@ public class OrderService {
         if (idempotencyKey != null && !idempotencyKey.isBlank()) {
             Optional<IdempotencyKey> existing = idempotencyKeyRepository.findByIdempotencyKey(idempotencyKey);
             if (existing.isPresent() && "ORDER".equals(existing.get().getResourceType())) {
-                return orderRepository.findById(Long.valueOf(existing.get().getResourceId()))
-                        .orElseThrow(() -> new ResourceNotFoundException(
-                                "Idempotency key references a missing order (ID: "
-                                        + existing.get().getResourceId() + "). Data may be inconsistent."));
+                Order existingOrder = orderRepository.findById(Long.valueOf(existing.get().getResourceId()))
+        .orElseThrow(() -> new ResourceNotFoundException(
+                "Idempotency key references a missing order (ID: "
+                        + existing.get().getResourceId() + "). Data may be inconsistent."));
+
+                return orderMapper.toOrderResponse(existingOrder);
             }
         }
 
@@ -137,16 +141,16 @@ public class OrderService {
             idempotencyKeyRepository.save(idem);
         }
 
-        return savedOrder;
+        return orderMapper.toOrderResponse(savedOrder);
     }
 
     /**
      * Retrieves all orders associated with the given user email.
      *
      * @param email the authenticated user's email
-     * @return a (possibly empty) list of {@link Order} entities
+     * @return a (possibly empty) list of {@link OrderResponse} DTOs
      */
-    public List<Order> getUserOrders(String email) {
-        return orderRepository.findByUserEmail(email);
+    public List<OrderResponse> getUserOrders(String email) {
+        return orderMapper.toOrderResponseList(orderRepository.findByUserEmail(email));
     }
 }

@@ -101,6 +101,8 @@ public class JwtFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
         String path = request.getServletPath();
         return path.startsWith("/auth/")
-                || request.getMethod().equalsIgnoreCase("OPTIONS");
+                || path.startsWith("/api/auth/")
+            || path.equals("/api/payments/webhook")
+            || request.getMethod().equalsIgnoreCase("OPTIONS");
     }
 }
