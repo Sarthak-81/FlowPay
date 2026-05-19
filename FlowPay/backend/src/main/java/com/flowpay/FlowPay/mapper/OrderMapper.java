@@ -5,7 +5,6 @@ import com.flowpay.FlowPay.dto.OrderResponse;
 import com.flowpay.FlowPay.entity.Order;
 import com.flowpay.FlowPay.entity.OrderItem;
 import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
 
 import java.util.List;
 

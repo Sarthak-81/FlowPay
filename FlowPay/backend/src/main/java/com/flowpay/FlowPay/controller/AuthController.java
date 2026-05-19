@@ -1,8 +1,12 @@
 package com.flowpay.FlowPay.controller;
 
+import com.flowpay.FlowPay.dto.AuthResponse;
 import com.flowpay.FlowPay.dto.LoginRequest;
+import com.flowpay.FlowPay.dto.RefreshTokenRequest;
 import com.flowpay.FlowPay.dto.SignupRequest;
 import com.flowpay.FlowPay.service.AuthService;
+import com.flowpay.FlowPay.service.RefreshTokenService;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -38,6 +42,9 @@ public class AuthController {
 
     @Autowired
     private AuthService authService;
+
+    @Autowired
+    private RefreshTokenService refreshTokenService;
 
     /**
      * Registers a new user account.
@@ -102,4 +109,28 @@ public class AuthController {
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
     }
+
+    @PostMapping("/refresh")
+public ResponseEntity<AuthResponse> refreshToken(
+        @RequestBody RefreshTokenRequest request
+) {
+    String newAccessToken =
+            refreshTokenService.validateAndGenerateAccessToken(request.getRefreshToken());
+
+    return ResponseEntity.ok(
+            AuthResponse.builder()
+                    .accessToken(newAccessToken)
+                    .refreshToken(request.getRefreshToken())
+                    .tokenType("Bearer")
+                    .build()
+    );
+}
+
+@PostMapping("/logout")
+public ResponseEntity<String> logout(
+        @RequestBody RefreshTokenRequest request
+) {
+    refreshTokenService.revokeToken(request.getRefreshToken());
+    return ResponseEntity.ok("Logged out successfully");
+}
 }

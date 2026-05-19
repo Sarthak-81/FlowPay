@@ -1,5 +1,6 @@
 package com.flowpay.FlowPay.service;
 
+import com.flowpay.FlowPay.dto.AuthResponse;
 import com.flowpay.FlowPay.dto.LoginRequest;
 import com.flowpay.FlowPay.dto.SignupRequest;
 import com.flowpay.FlowPay.entity.User;
@@ -36,6 +37,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final UserMapper userMapper;
+    private final RefreshTokenService refreshTokenService;
 
     /**
      * Registers a new user account.
@@ -77,16 +79,22 @@ public class AuthService {
      * @throws ResourceNotFoundException if no account exists for the given email
      * @throws IllegalArgumentException  if the password is incorrect
      */
-    public String login(LoginRequest request) {
+    public AuthResponse login(LoginRequest request) {
 
-        User user = userRepository.findByEmail(request.email)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "No account found for email: " + request.email));
+    User user = userRepository.findByEmail(request.getEmail())
+            .orElseThrow(() -> new RuntimeException("Invalid email or password"));
 
-        if (!passwordEncoder.matches(request.password, user.getPassword())) {
-            throw new IllegalArgumentException("Incorrect password.");
-        }
-
-        return jwtUtil.generateToken(user.getEmail());
+    if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+        throw new RuntimeException("Invalid email or password");
     }
+
+    String accessToken = jwtUtil.generateAccessToken(user.getEmail());
+    String refreshToken = refreshTokenService.createRefreshToken(user.getEmail());
+
+    return AuthResponse.builder()
+            .accessToken(accessToken)
+            .refreshToken(refreshToken)
+            .tokenType("Bearer")
+            .build();
+}
 }
