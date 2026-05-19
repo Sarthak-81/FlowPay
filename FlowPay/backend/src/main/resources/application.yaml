@@ -6,6 +6,7 @@ spring:
     url: jdbc:mysql://localhost:3306/flowpay
     username: root
     password: root123
+    driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
     hibernate:
@@ -17,6 +18,7 @@ spring:
 
   kafka:
     bootstrap-servers: localhost:9092
+
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
@@ -27,17 +29,31 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
-        spring.json.trusted.packages: com.flowpay.FlowPay.event
+        spring.json.trusted.packages: com.flowpay.FlowPay.event.*
         spring.json.value.default.type: com.flowpay.FlowPay.event.PaymentSuccessEvent
         spring.json.use.type.headers: false
 
+resilience4j:
+  circuitbreaker:
+    instances:
+      kafkaPublisher:
+        register-health-indicator: true
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+
 razorpay:
-  key: rzp_test_SjJbldo92o9fp3
-  secret: vzxrTzAAHpOLQD0XLLae6Bs5
+  key: ${RAZORPAY_KEY}
+  secret: ${RAZORPAY_SECRET}
 
 logging:
   level:
     root: INFO
+    com.flowpay.FlowPay: DEBUG
+    org.springframework.kafka: INFO
 
 server:
   port: 8080

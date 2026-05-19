@@ -59,7 +59,6 @@ public class Order {
      */
     @Column(name = "user_email")
     private String userEmail;
-
     /** Timestamp when this order was first created. */
     @Column(name = "created_at")
     private LocalDateTime createdAt;
